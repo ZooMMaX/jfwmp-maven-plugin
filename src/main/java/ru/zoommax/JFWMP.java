@@ -30,6 +30,8 @@ public class JFWMP extends AbstractMojo{
     private boolean createStartServerMethod;
     @Parameter(defaultValue = "true")
     private boolean createUnpackMethod;
+    @Parameter(defaultValue = "false")
+    private boolean https;
 
     public void execute() {
         StringBuilder endpoints = new StringBuilder();
@@ -62,7 +64,7 @@ public class JFWMP extends AbstractMojo{
                     try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                         String line;
                         while ((line = reader.readLine()) != null) {
-                            getLog().info(line);
+                            getLog().info("[DART BUILD INFO] ➜ " + line);
                         }
                     }
                     process.waitFor();
@@ -85,6 +87,7 @@ public class JFWMP extends AbstractMojo{
                 if (!api.exists()) {
                     api.mkdirs();
                 }
+                getLog().info("Creating Server class");
                 server = new File(api + "/Server.java");
                 if (server.exists()) {
                     server.delete();
@@ -94,7 +97,7 @@ public class JFWMP extends AbstractMojo{
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-
+                getLog().info("Creating Unpacker class");
                 unpacker = new File(api + "/Unpacker.java");
                 if (unpacker.exists()) {
                     unpacker.delete();
@@ -104,7 +107,7 @@ public class JFWMP extends AbstractMojo{
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-
+                getLog().info("Creating endpoints");
                 projectNameStr = flutterProjectDir.getName();
                 List<Path> files = new ArrayList<>();
                 //recursive search for files in the project
@@ -117,6 +120,7 @@ public class JFWMP extends AbstractMojo{
                 }
                 for (int x = 0; x < files.size(); x++) {
                     String filePath = files.get(x).toString().replace(flutterProjectDir.toString()+"/build/web", "");
+                    getLog().info("Creating endpoint for file: " + filePath);
                     String fileName = "endpoint"+x;
                             String endpoint = getEndpointString()
                             .replace("$apiPath", apiPath)
@@ -125,13 +129,15 @@ public class JFWMP extends AbstractMojo{
                             .replace("$filePath", filePath);
                     endpoints.append(endpoint).append("\n");
                 }
+                getLog().info("Creating base endpoint for project: " + projectNameStr);
                 endpointsProjects.append(getEndpointStringProject()
                         .replace("$apiPath", apiPath)
                         .replace("$projectName", projectNameStr)).append("\n");
-
+                getLog().info("Creating unpackers for project: " + projectNameStr);
                 unpackers.append(getUnpackMethod().replace("$projectName", projectNameStr)).append("\n");
             }
         }
+        getLog().info("Fill the server class with endpoints");
         String serverClass = getClassString()
                 .replace("$package", project.getGroupId()+".flutters")
                 .replace("$port", port + "")
@@ -140,58 +146,26 @@ public class JFWMP extends AbstractMojo{
                 .replace("$endpoints", endpoints.toString());
 
         try {
+            getLog().info("Writing server class to file: " + server.getAbsolutePath());
             Files.writeString(server.toPath(), serverClass);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        getLog().info("Fill the unpacker class with unpackers");
         String unpackerClass = getUnpackClass()
                 .replace("$package", project.getGroupId()+".flutters")
                 .replace("$unpackers", unpackers.toString());
 
         try {
+            getLog().info("Writing unpacker class to file: " + unpacker.getAbsolutePath());
             Files.writeString(unpacker.toPath(), unpackerClass);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        if (createUnpackMethod){
-            //search the main method in the .java files
-            File main = new File(project.getBasedir() + "/src/main/java");
-            List<File> javaFiles;
-            try {
-                javaFiles = Files.walk(main.toPath())
-                        .filter(Files::isRegularFile)
-                        .filter(file -> file.toString().endsWith(".java"))
-                        .map(Path::toFile)
-                        .toList();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            for (File javaFile : javaFiles) {
-                //insert getUnpackMethod() into the main method
-                try {
-                    String fileContent = Files.readString(javaFile.toPath());
-                    if (fileContent.contains("public static void main(String[] args)") && !fileContent.contains("\"public static void main(String[] args)\"")) {
-                        fileContent = fileContent.replace("        Unpacker.unpack();\n", "");
-                        String[] lines = fileContent.split("\n");
-                        StringBuilder newFileContent = new StringBuilder();
-                        for (String line : lines) {
-                            newFileContent.append(line).append("\n");
-                            if (line.contains("package") && !fileContent.contains("import " + project.getGroupId() + ".flutters.Unpacker;")){
-                                newFileContent.append("\nimport ").append(project.getGroupId()).append(".flutters.Unpacker;\n");
-                            }
-                            if (line.contains("public static void main(String[] args)")) {
-                                newFileContent.append("        Unpacker.unpack();\n");
-                            }
-                        }
-                        Files.writeString(javaFile.toPath(), newFileContent);
-                    }
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
         if (createStartServerMethod){
+            getLog().info("Creating Server.start() in the main method");
             //search the main method in the .java files
+            getLog().info("Searching for the main method in the .java files");
             File main = new File(project.getBasedir() + "/src/main/java");
             List<File> javaFiles;
             try {
@@ -208,6 +182,7 @@ public class JFWMP extends AbstractMojo{
                 try {
                     String fileContent = Files.readString(javaFile.toPath());
                     if (fileContent.contains("public static void main(String[] args)") && !fileContent.contains("\"public static void main(String[] args)\"")) {
+                        getLog().info("Inserting Server.start() into the main method in the file: " + javaFile.getAbsolutePath());
                         fileContent = fileContent.replace(getStartServerMethod().replace("$groupId", project.getGroupId()), "");
                         fileContent = fileContent.replace("import " + project.getGroupId() + ".flutters.Server;\n\n", "")
                                 .replace("import " + project.getGroupId() + ".flutters.Server;\n", "");
@@ -216,12 +191,56 @@ public class JFWMP extends AbstractMojo{
                         for (String line : lines) {
                             newFileContent.append(line).append("\n");
                             if (line.contains("package")) {
+                                getLog().info("Inserting import Server into the file: " + javaFile.getAbsolutePath());
                                 newFileContent.append("\nimport ").append(project.getGroupId()).append(".flutters.Server;\n");
                             }
                             if (line.contains("public static void main(String[] args)")) {
                                 newFileContent.append(getStartServerMethod().replace("$groupId", project.getGroupId()));
                             }
                         }
+                        getLog().info("Writing changes to the file: " + javaFile.getAbsolutePath());
+                        Files.writeString(javaFile.toPath(), newFileContent);
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+        if (createUnpackMethod){
+            getLog().info("Creating Unpacker.unpack() in the main method");
+            //search the main method in the .java files
+            getLog().info("Searching for the main method in the .java files");
+            File main = new File(project.getBasedir() + "/src/main/java");
+            List<File> javaFiles;
+            try {
+                javaFiles = Files.walk(main.toPath())
+                        .filter(Files::isRegularFile)
+                        .filter(file -> file.toString().endsWith(".java"))
+                        .map(Path::toFile)
+                        .toList();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            for (File javaFile : javaFiles) {
+                //insert getUnpackMethod() into the main method
+                try {
+                    String fileContent = Files.readString(javaFile.toPath());
+                    if (fileContent.contains("public static void main(String[] args)") && !fileContent.contains("\"public static void main(String[] args)\"")) {
+                        getLog().info("Inserting Unpacker.unpack() into the main method in the file: " + javaFile.getAbsolutePath());
+                        fileContent = fileContent.replace("        Unpacker.unpack();\n", "");
+                        String[] lines = fileContent.split("\n");
+                        StringBuilder newFileContent = new StringBuilder();
+                        for (String line : lines) {
+                            newFileContent.append(line).append("\n");
+                            if (line.contains("package") && !fileContent.contains("import " + project.getGroupId() + ".flutters.Unpacker;")){
+                                getLog().info("Inserting import Unpacker into the file: " + javaFile.getAbsolutePath());
+                                newFileContent.append("\nimport ").append(project.getGroupId()).append(".flutters.Unpacker;\n");
+                            }
+                            if (line.contains("public static void main(String[] args)")) {
+                                newFileContent.append("        Unpacker.unpack();\n");
+                            }
+                        }
+                        getLog().info("Writing changes to the file: " + javaFile.getAbsolutePath());
                         Files.writeString(javaFile.toPath(), newFileContent);
                     }
                 } catch (IOException e) {
@@ -230,6 +249,7 @@ public class JFWMP extends AbstractMojo{
             }
         }
         try {
+            getLog().info("Checking the presence of the SimpleServer dependency in the pom.xml");
             String pomDependencies = Files.readString(new File(project.getBasedir() + "/pom.xml").toPath());
             if (!pomDependencies.contains("SimpleServer")){
                 throw new RuntimeException("Add SimpleServer dependency to pom.xml\n" +
@@ -242,9 +262,40 @@ public class JFWMP extends AbstractMojo{
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        try {
+            getLog().info("Inserting the base path into the index.html file of the flutter project");
+            String indexHtml = Files.readString(new File(project.getBasedir() + "/src/main/resources/"+projectNameStr+"/index.html").toPath());
+            if (https) {
+                getLog().info("Base path with https");
+                indexHtml = indexHtml.replace("<base href=\"/\">", "<script>\n" +
+                        "    var hostname = window.location.hostname;\n" +
+                        "    var port = window.location.port;\n" +
+                        "    var baseUrl = \"http://\" + hostname + \":\" + port + \""+apiPath+"/"+projectNameStr+"/\";\n" +
+                        "    var base = document.createElement('base');\n" +
+                        "    base.href = baseUrl;\n" +
+                        "    document.head.appendChild(base);\n" +
+                        "</script>");
+            }else {
+                getLog().info("Base path with http");
+                indexHtml = indexHtml.replace("<base href=\"/\">", "<script>\n" +
+                        "    var hostname = window.location.hostname;\n" +
+                        "    var port = window.location.port;\n" +
+                        "    var baseUrl = \"http://\" + hostname + \":\" + port + \""+apiPath+"/"+projectNameStr+"/\";\n" +
+                        "    var base = document.createElement('base');\n" +
+                        "    base.href = baseUrl;\n" +
+                        "    document.head.appendChild(base);\n" +
+                        "</script>");
+            }
+            getLog().info("Writing changes to the index.html file of the flutter project");
+            Files.writeString(new File(project.getBasedir() + "/src/main/resources/"+projectNameStr+"/index.html").toPath(), indexHtml);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        getLog().info("Flutter projects compiled, copied to resources. Server.java and Unpacker.java created and filled with endpoints and unpackers");
     }
 
     public void copyDirectory(Path source, Path target) throws IOException {
+        getLog().info("Copying files from: " + source.toString() + " to: " + target.toString());
         File targetFile = new File(target.toString());
         if (targetFile.exists()){
             deleteDirectory(targetFile);
@@ -370,7 +421,7 @@ public class JFWMP extends AbstractMojo{
                             }
                             File file = new File(forTarget.toString().substring(1));
                             file.mkdirs();
-                            Path targetPath = Path.of(forTarget.toString().substring(1));
+                            Path targetPath = file.toPath();
                             try {
                                 Files.copy(path, targetPath, StandardCopyOption.REPLACE_EXISTING);
                             } catch (IOException e) {
