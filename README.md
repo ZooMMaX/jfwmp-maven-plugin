@@ -1,5 +1,9 @@
 # JFWMP Maven Plugin
 
+![Maven Central](https://img.shields.io/maven-central/v/ru.zoommax/jfwmp-maven-plugin?style=plastic)
+![GitHub](https://img.shields.io/github/license/ZooMMaX/jfwmp-maven-plugin?style=plastic)
+[![GitHub issues](https://img.shields.io/github/issues/ZooMMaX/jfwmp-maven-plugin?style=plastic)](https://github.com/ZooMMaX/jfwmp-maven-plugin/issues)
+
 ## Overview
 The JFWMP (Java Flutter Web Multi Project) Maven Plugin is a custom plugin designed to simplify the development of client-server solutions within a single project. It automates the process of compiling Flutter projects, copying the compiled projects to resources, and generating server classes for access to the application. It is specifically designed for projects that use Java and Maven. This plugin is particularly useful for developers who are working on multi-project solutions where they need to manage multiple Flutter web applications in a single Java project.
 ## Parameters
