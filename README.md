@@ -33,7 +33,7 @@ To use the plugin, add it to your `pom.xml` file:
         <plugin>
             <groupId>ru.zoommax</groupId>
             <artifactId>jfwmp-maven-plugin</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>1.0.0</version>
             <configuration>
                 <!-- Add your configuration here -->
             </configuration>
