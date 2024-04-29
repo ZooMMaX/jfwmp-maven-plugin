@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Mojo(name = "flutter-compiler", defaultPhase = LifecyclePhase.INITIALIZE)
-public class TgApp extends AbstractMojo{
+public class JFWMP extends AbstractMojo{
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
     MavenProject project;
     @Parameter(defaultValue = "/api/v1/miniapp")
