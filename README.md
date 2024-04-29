@@ -6,6 +6,27 @@
 
 ## Overview
 The JFWMP (Java Flutter Web Multi Project) Maven Plugin is a custom plugin designed to simplify the development of client-server solutions within a single project. It automates the process of compiling Flutter projects, copying the compiled projects to resources, and generating server classes for access to the application. It is specifically designed for projects that use Java and Maven. This plugin is particularly useful for developers who are working on multi-project solutions where they need to manage multiple Flutter web applications in a single Java project.
+
+## Prerequisites
+
+Before you can use the JFWMP Maven Plugin, you need to ensure that you have the following prerequisites installed and set up on your computer:
+
+- Flutter (which includes the Dart SDK): You can download Flutter from the [official Flutter website](https://flutter.dev/docs/get-started/install). Follow the instructions provided on the website to install Flutter on your operating system.
+
+- Environment Variables: After installing Flutter and Dart, you need to set up your environment variables. Add the path to your Flutter `bin` directory to your `PATH` environment variable. The process for setting environment variables depends on your operating system:
+
+    - On Windows, you can follow the instructions provided in this [Microsoft documentation](https://docs.microsoft.com/en-us/windows/win32/procthread/environment-variables).
+
+    - On Linux and macOS, you can add the following line to your `.bashrc`, `.bash_profile`, or `.zshrc` file (depending on your shell):
+
+      ```bash
+      export PATH="$PATH:`<path_to_flutter_directory>`/flutter/bin"
+      ```
+
+      Replace `<path_to_flutter_directory>` with the actual path to the directory where you installed Flutter.
+
+After setting up the prerequisites, you can proceed to use the JFWMP Maven Plugin as described in the rest of this README.
+
 ## Parameters
 The plugin accepts the following parameters:
 
