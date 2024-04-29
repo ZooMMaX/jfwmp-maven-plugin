@@ -28,11 +28,15 @@ public class TgApp extends AbstractMojo{
     private int threads;
     @Parameter(defaultValue = "true")
     private boolean createStartServerMethod;
+    @Parameter(defaultValue = "true")
+    private boolean createUnpackMethod;
 
     public void execute() {
         StringBuilder endpoints = new StringBuilder();
         StringBuilder endpointsProjects = new StringBuilder();
+        StringBuilder unpackers = new StringBuilder();
         File server = null;
+        File unpacker = null;
         String projectNameStr = "";
         File flutterSrc = new File(project.getBasedir() + "/flutter");
         List<File> flutterProjectsDirs;
@@ -90,6 +94,17 @@ public class TgApp extends AbstractMojo{
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
+
+                unpacker = new File(api + "/Unpacker.java");
+                if (unpacker.exists()) {
+                    unpacker.delete();
+                }
+                try {
+                    unpacker.createNewFile();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+
                 projectNameStr = flutterProjectDir.getName();
                 List<Path> files = new ArrayList<>();
                 //recursive search for files in the project
@@ -113,6 +128,8 @@ public class TgApp extends AbstractMojo{
                 endpointsProjects.append(getEndpointStringProject()
                         .replace("$apiPath", apiPath)
                         .replace("$projectName", projectNameStr)).append("\n");
+
+                unpackers.append(getUnpackMethod().replace("$projectName", projectNameStr)).append("\n");
             }
         }
         String serverClass = getClassString()
@@ -126,6 +143,52 @@ public class TgApp extends AbstractMojo{
             Files.writeString(server.toPath(), serverClass);
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+        String unpackerClass = getUnpackClass()
+                .replace("$package", project.getGroupId()+".flutters")
+                .replace("$unpackers", unpackers.toString());
+
+        try {
+            Files.writeString(unpacker.toPath(), unpackerClass);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        if (createUnpackMethod){
+            //search the main method in the .java files
+            File main = new File(project.getBasedir() + "/src/main/java");
+            List<File> javaFiles;
+            try {
+                javaFiles = Files.walk(main.toPath())
+                        .filter(Files::isRegularFile)
+                        .filter(file -> file.toString().endsWith(".java"))
+                        .map(Path::toFile)
+                        .toList();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            for (File javaFile : javaFiles) {
+                //insert getUnpackMethod() into the main method
+                try {
+                    String fileContent = Files.readString(javaFile.toPath());
+                    if (fileContent.contains("public static void main(String[] args)") && !fileContent.contains("\"public static void main(String[] args)\"")) {
+                        fileContent = fileContent.replace("        Unpacker.unpack();\n", "");
+                        String[] lines = fileContent.split("\n");
+                        StringBuilder newFileContent = new StringBuilder();
+                        for (String line : lines) {
+                            newFileContent.append(line).append("\n");
+                            if (line.contains("package") && !fileContent.contains("import " + project.getGroupId() + ".flutters.Unpacker;")){
+                                newFileContent.append("\nimport ").append(project.getGroupId()).append(".flutters.Unpacker;\n");
+                            }
+                            if (line.contains("public static void main(String[] args)")) {
+                                newFileContent.append("        Unpacker.unpack();\n");
+                            }
+                        }
+                        Files.writeString(javaFile.toPath(), newFileContent);
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
         }
         if (createStartServerMethod){
             //search the main method in the .java files
@@ -269,5 +332,81 @@ public class TgApp extends AbstractMojo{
         return """
                 new Thread(() -> Server.start()).start();
         """;
+    }
+
+    private String getUnpackMethod(){
+        return """
+                try {
+                    FileSystem fs = null;
+                    HashMap<String, String> env = new HashMap<>();
+                    URL resourceUrl = Unpacker.class.getResource("/$projectName");
+                    String resourceUrlStr = resourceUrl.toString();
+                    List<Path> paths = null;
+                    if (resourceUrlStr.contains("!")) {
+                        String[] array = resourceUrlStr.split("!");
+                        fs = FileSystems.newFileSystem(URI.create(array[0]), env);
+                        paths = Arrays.asList(Files.walk(fs.getPath(array[1])).toArray(Path[]::new));
+                    } else {
+                        paths = Arrays.asList(Files.walk(Paths.get(resourceUrl.toURI())).toArray(Path[]::new));
+                    }
+                    for (Path path : paths) {
+                        if (Files.isRegularFile(path)) {
+                            Path forTarget = null;
+                            if (!path.toString().startsWith("/$projectName")){
+                                String[] split = path.toString().split("/");
+                                StringBuilder sb = new StringBuilder();
+                                boolean needToSkip = true;
+                                for (int i = 0; i < split.length - 1; i++) {
+                                    if (!split[i].equals("$projectName") && needToSkip){
+                                        continue;
+                                    }else {
+                                         needToSkip = false;
+                                    }
+                                    sb.append("/").append(split[i]);
+                                }
+                                forTarget = Path.of(sb.toString() + "/" + split[split.length - 1]);
+                            }else {
+                                forTarget = path;
+                            }
+                            File file = new File(forTarget.toString().substring(1));
+                            file.mkdirs();
+                            Path targetPath = Path.of(forTarget.toString().substring(1));
+                            try {
+                                Files.copy(path, targetPath, StandardCopyOption.REPLACE_EXISTING);
+                            } catch (IOException e) {
+                                throw new UncheckedIOException(e);
+                            }
+                        }
+                    }
+                    if (fs != null){
+                        fs.close();
+                    }
+                } catch (IOException | URISyntaxException e) {
+                    e.printStackTrace();
+                }
+        """;
+    }
+
+    private String getUnpackClass(){
+        return """
+                package $package;
+                
+                import java.io.File;
+                import java.io.IOException;
+                import java.io.UncheckedIOException;
+                import java.net.URI;
+                import java.net.URISyntaxException;
+                import java.net.URL;
+                import java.nio.file.*;
+                import java.util.Arrays;
+                import java.util.HashMap;
+                import java.util.List;
+                
+                public class Unpacker {
+                    public static void unpack() {
+                        $unpackers
+                    }
+                }
+                """;
     }
 }
