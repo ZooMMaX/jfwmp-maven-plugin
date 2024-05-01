@@ -7,7 +7,7 @@
     <groupId>ru.zoommax</groupId>
     <artifactId>jfwmp-maven-plugin</artifactId>
     <packaging>maven-plugin</packaging>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <name>Java Flutter Web Multi Project</name>
     <description>Compiler maven plugin</description>
     <url>https://github.com/ZooMMaX/jfwmp-maven-plugin</url>
