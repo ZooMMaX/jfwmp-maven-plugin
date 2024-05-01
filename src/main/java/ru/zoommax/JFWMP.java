@@ -270,7 +270,7 @@ public class JFWMP extends AbstractMojo{
                 indexHtml = indexHtml.replace("<base href=\"/\">", "<script>\n" +
                         "    var hostname = window.location.hostname;\n" +
                         "    var port = window.location.port;\n" +
-                        "    var baseUrl = \"http://\" + hostname + \":\" + port + \""+apiPath+"/"+projectNameStr+"/\";\n" +
+                        "    var baseUrl = \"https://\" + hostname + \":\" + port + \""+apiPath+"/"+projectNameStr+"/\";\n" +
                         "    var base = document.createElement('base');\n" +
                         "    base.href = baseUrl;\n" +
                         "    document.head.appendChild(base);\n" +
