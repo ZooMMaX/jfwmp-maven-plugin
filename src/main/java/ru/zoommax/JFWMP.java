@@ -53,7 +53,8 @@ public class JFWMP extends AbstractMojo{
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        for (File flutterProjectDir : flutterProjectsDirs) {
+        for (int i = 0; i < flutterProjectsDirs.size(); i++) {
+            File flutterProjectDir = flutterProjectsDirs.get(i);
             File pubspec = new File(flutterProjectDir + "/pubspec.yaml");
             if (pubspec.exists()) {
                 getLog().info("Compiling flutter project: " + flutterProjectDir.getName());
@@ -121,7 +122,7 @@ public class JFWMP extends AbstractMojo{
                 for (int x = 0; x < files.size(); x++) {
                     String filePath = files.get(x).toString().replace(flutterProjectDir.toString()+"/build/web", "");
                     getLog().info("Creating endpoint for file: " + filePath);
-                    String fileName = "endpoint"+x;
+                    String fileName = "endpoint"+i+x;
                             String endpoint = getEndpointString()
                             .replace("$apiPath", apiPath)
                             .replace("$projectName", projectNameStr)
