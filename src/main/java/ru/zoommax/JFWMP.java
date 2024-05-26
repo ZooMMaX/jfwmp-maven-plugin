@@ -40,6 +40,7 @@ public class JFWMP extends AbstractMojo{
         File server = null;
         File unpacker = null;
         String projectNameStr = "";
+        List<String> projectNames = new ArrayList<>();
         File flutterSrc = new File(project.getBasedir() + "/flutter");
         List<File> flutterProjectsDirs;
         getLog().info("Start compiling flutter projects");
@@ -110,6 +111,7 @@ public class JFWMP extends AbstractMojo{
                 }
                 getLog().info("Creating endpoints");
                 projectNameStr = flutterProjectDir.getName();
+                projectNames.add(projectNameStr);
                 List<Path> files = new ArrayList<>();
                 //recursive search for files in the project
                 try {
@@ -264,31 +266,33 @@ public class JFWMP extends AbstractMojo{
             throw new RuntimeException(e);
         }
         try {
-            getLog().info("Inserting the base path into the index.html file of the flutter project");
-            String indexHtml = Files.readString(new File(project.getBasedir() + "/src/main/resources/"+projectNameStr+"/index.html").toPath());
-            if (https) {
-                getLog().info("Base path with https");
-                indexHtml = indexHtml.replace("<base href=\"/\">", "<script>\n" +
-                        "    var hostname = window.location.hostname;\n" +
-                        "    var port = window.location.port;\n" +
-                        "    var baseUrl = \"https://\" + hostname + \":\" + port + \""+apiPath+"/"+projectNameStr+"/\";\n" +
-                        "    var base = document.createElement('base');\n" +
-                        "    base.href = baseUrl;\n" +
-                        "    document.head.appendChild(base);\n" +
-                        "</script>");
-            }else {
-                getLog().info("Base path with http");
-                indexHtml = indexHtml.replace("<base href=\"/\">", "<script>\n" +
-                        "    var hostname = window.location.hostname;\n" +
-                        "    var port = window.location.port;\n" +
-                        "    var baseUrl = \"http://\" + hostname + \":\" + port + \""+apiPath+"/"+projectNameStr+"/\";\n" +
-                        "    var base = document.createElement('base');\n" +
-                        "    base.href = baseUrl;\n" +
-                        "    document.head.appendChild(base);\n" +
-                        "</script>");
+            for (String projectNameStr1 : projectNames) {;
+                getLog().info("Inserting the base path into the index.html file of the flutter project");
+                String indexHtml = Files.readString(new File(project.getBasedir() + "/src/main/resources/" + projectNameStr1 + "/index.html").toPath());
+                if (https) {
+                    getLog().info("Base path with https");
+                    indexHtml = indexHtml.replace("<base href=\"/\">", "<script>\n" +
+                            "    var hostname = window.location.hostname;\n" +
+                            "    var port = window.location.port;\n" +
+                            "    var baseUrl = \"https://\" + hostname + \":\" + port + \"" + apiPath + "/" + projectNameStr1 + "/\";\n" +
+                            "    var base = document.createElement('base');\n" +
+                            "    base.href = baseUrl;\n" +
+                            "    document.head.appendChild(base);\n" +
+                            "</script>");
+                } else {
+                    getLog().info("Base path with http");
+                    indexHtml = indexHtml.replace("<base href=\"/\">", "<script>\n" +
+                            "    var hostname = window.location.hostname;\n" +
+                            "    var port = window.location.port;\n" +
+                            "    var baseUrl = \"http://\" + hostname + \":\" + port + \"" + apiPath + "/" + projectNameStr1 + "/\";\n" +
+                            "    var base = document.createElement('base');\n" +
+                            "    base.href = baseUrl;\n" +
+                            "    document.head.appendChild(base);\n" +
+                            "</script>");
+                }
+                getLog().info("Writing changes to the index.html file of the flutter project");
+                Files.writeString(new File(project.getBasedir() + "/src/main/resources/" + projectNameStr1 + "/index.html").toPath(), indexHtml);
             }
-            getLog().info("Writing changes to the index.html file of the flutter project");
-            Files.writeString(new File(project.getBasedir() + "/src/main/resources/"+projectNameStr+"/index.html").toPath(), indexHtml);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
